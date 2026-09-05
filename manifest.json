@@ -1,0 +1,22 @@
+{
+  "name": "NOVA Personal AI",
+  "short_name": "NOVA",
+  "description": "NOVA personal AI assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#05070c",
+  "theme_color": "#05070c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/nova-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/nova-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
