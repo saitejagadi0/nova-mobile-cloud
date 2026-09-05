@@ -1,13 +1,11 @@
 import os
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from openai import OpenAI
 
 
 app = Flask(__name__)
-
-# Allow the NOVA mobile web interface to call this API
 CORS(app)
 
 
@@ -27,10 +25,7 @@ def get_client():
 
 @app.get("/")
 def home():
-    return jsonify({
-        "assistant": "NOVA",
-        "status": "online"
-    })
+    return send_from_directory(".", "mobile.html")
 
 
 @app.get("/health")
@@ -45,7 +40,6 @@ def health():
 def chat():
 
     try:
-
         data = request.get_json(silent=True) or {}
 
         message = str(
@@ -57,20 +51,17 @@ def chat():
         ).strip().lower()
 
         if not message:
-
             return jsonify({
                 "success": False,
                 "error": "Message is required."
             }), 400
 
-
         instructions = {
-
             "chat":
                 "You are NOVA, a helpful personal AI assistant.",
 
             "reason":
-                "You are NOVA in reasoning mode. Analyze problems carefully and explain the reasoning clearly.",
+                "You are NOVA in reasoning mode. Analyze problems carefully and explain clearly.",
 
             "code":
                 "You are NOVA in coding mode. Help write, debug, review and explain code.",
@@ -79,39 +70,27 @@ def chat():
                 "You are NOVA in math mode. Solve calculations accurately and explain the result."
         }
 
-
         instruction = instructions.get(
             mode,
             instructions["chat"]
         )
 
-
         response = get_client().responses.create(
-
             model=MODEL,
-
             instructions=instruction,
-
             input=message
         )
 
-
         return jsonify({
-
             "success": True,
-
             "mode": mode,
-
             "response": response.output_text
         })
-
 
     except Exception as e:
 
         return jsonify({
-
             "success": False,
-
             "error": str(e)
         }), 500
 
