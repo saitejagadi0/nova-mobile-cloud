@@ -9,7 +9,6 @@ from openai import OpenAI
 app = Flask(__name__)
 CORS(app)
 
-
 MODEL = "gpt-5.6-luna"
 
 
@@ -17,9 +16,7 @@ def get_client():
     api_key = os.getenv("OPENAI_API_KEY")
 
     if not api_key:
-        raise RuntimeError(
-            "OPENAI_API_KEY is not configured."
-        )
+        raise RuntimeError("OPENAI_API_KEY is not configured.")
 
     return OpenAI(api_key=api_key)
 
@@ -41,281 +38,128 @@ def health():
 def chat():
 
     try:
+        data = request.get_json(silent=True)
 
-        # -------------------------------------------------
-        # READ REQUEST BODY
-        # -------------------------------------------------
-
-        data = request.get_json(
-            silent=True
-        )
-
-        # If Flask did not parse JSON, manually decode it.
         if not isinstance(data, dict):
-
-            raw_body = request.get_data(
-                as_text=True
-            ).strip()
+            raw_body = request.get_data(as_text=True).strip()
 
             if raw_body:
-
                 try:
-                    data = json.loads(
-                        raw_body
-                    )
-
+                    data = json.loads(raw_body)
                 except Exception:
                     data = {}
-
             else:
                 data = {}
 
+        if not data and request.form:
+            data = request.form.to_dict()
 
-        # -------------------------------------------------
-        # FALLBACK FOR FORM DATA
-        # -------------------------------------------------
-
-        if not data:
-
-            if request.form:
-
-                data = request.form.to_dict()
-
-            else:
-
-                data = {}
-
-
-        # -------------------------------------------------
-        # MESSAGE
-        # -------------------------------------------------
+        if not isinstance(data, dict):
+            data = {}
 
         message = str(
-            data.get(
-                "message",
-                ""
-            )
+            data.get("message", "")
         ).strip()
 
-
-        # -------------------------------------------------
-        # MODE
-        # -------------------------------------------------
-
         mode = str(
-            data.get(
-                "mode",
-                "chat"
-            )
+            data.get("mode", "chat")
         ).strip().lower()
 
-
-        # -------------------------------------------------
-        # HISTORY
-        # -------------------------------------------------
-
-        history = data.get(
-            "history",
-            []
-        )
-
-
-        if not isinstance(
-            history,
-            list
-        ):
-
-            history = []
-
-
-        history = history[-20:]
-
-
-        # -------------------------------------------------
-        # VALIDATE MESSAGE
-        # -------------------------------------------------
+        history = data.get("history", [])
 
         if not message:
-
             return jsonify({
                 "success": False,
                 "error": "Message is required."
             }), 400
 
+        if not isinstance(history, list):
+            history = []
 
-        # -------------------------------------------------
-        # MODE INSTRUCTIONS
-        # -------------------------------------------------
+        history = history[-20:]
 
         instructions = {
-
             "chat":
-                "You are NOVA, a helpful personal AI assistant. "
-                "Use the conversation history to remember information "
-                "the user has previously told you.",
-
+                "You are NOVA, a helpful personal AI assistant.",
 
             "reason":
-                "You are NOVA in reasoning mode. "
-                "Analyze problems carefully and explain clearly. "
-                "Use the conversation history when relevant.",
-
+                "You are NOVA in reasoning mode. Analyze problems carefully and explain clearly.",
 
             "code":
-                "You are NOVA in coding mode. "
-                "Help write, debug, review and explain code. "
-                "Use the conversation history when relevant.",
-
+                "You are NOVA in coding mode. Help write, debug, review and explain code.",
 
             "math":
-                "You are NOVA in math mode. "
-                "Solve calculations accurately and explain the result."
-        }
+                "You are NOVA in math mode. Solve calculations accurately and explain the result.",
 
+            "vision":
+                "You are NOVA in vision mode. Analyze visual information carefully when it is provided.",
+
+            "files":
+                "You are NOVA in file mode. Help the user understand and work with their files.",
+
+            "web":
+                "You are NOVA in web mode. Help answer questions using web information when available.",
+
+            "screen":
+                "You are NOVA in screen mode. Help analyze screen content and explain what is visible.",
+
+            "tools":
+                "You are NOVA in tools mode. Help the user accomplish tasks using available tools."
+        }
 
         instruction = instructions.get(
             mode,
             instructions["chat"]
         )
 
-
-        # -------------------------------------------------
-        # BUILD CONVERSATION
-        # -------------------------------------------------
-
         conversation = []
-
 
         for item in history:
 
-            if not isinstance(
-                item,
-                dict
-            ):
+            if not isinstance(item, dict):
                 continue
 
+            role = item.get("role")
 
-            role = item.get(
-                "role"
-            )
-
-
-            if role not in (
-                "user",
-                "assistant"
-            ):
+            if role not in ("user", "assistant"):
                 continue
-
 
             text = str(
-                item.get(
-                    "content",
-                    ""
-                )
+                item.get("content", "")
             ).strip()
-
 
             if not text:
                 continue
 
-
             conversation.append({
-
-                "role":
-                    role,
-
-                "content": [
-                    {
-                        "type":
-                            "input_text",
-
-                        "text":
-                            text
-                    }
-                ]
-
+                "role": role,
+                "content": text
             })
 
-
-        # -------------------------------------------------
-        # ADD CURRENT MESSAGE
-        # -------------------------------------------------
-
         conversation.append({
-
-            "role":
-                "user",
-
-            "content": [
-                {
-                    "type":
-                        "input_text",
-
-                    "text":
-                        message
-                }
-            ]
-
+            "role": "user",
+            "content": message
         })
-
-
-        # -------------------------------------------------
-        # OPENAI
-        # -------------------------------------------------
 
         response = get_client().responses.create(
-
             model=MODEL,
-
             instructions=instruction,
-
             input=conversation
-
         )
 
-
-        answer = response.output_text
-
-
-        # -------------------------------------------------
-        # RESPONSE
-        # -------------------------------------------------
-
         return jsonify({
-
-            "success":
-                True,
-
-            "mode":
-                mode,
-
-            "response":
-                answer
-
+            "success": True,
+            "mode": mode,
+            "response": response.output_text
         })
-
 
     except Exception as e:
 
-        print(
-            "NOVA CHAT ERROR:",
-            repr(e)
-        )
-
         return jsonify({
-
-            "success":
-                False,
-
-            "error":
-                str(e)
-
+            "success": False,
+            "error": str(e)
         }), 500
 
-
-# ---------------------------------------------------------
-# LOCAL DEVELOPMENT
-# ---------------------------------------------------------
 
 if __name__ == "__main__":
 
